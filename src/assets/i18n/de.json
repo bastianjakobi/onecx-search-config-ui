@@ -39,7 +39,7 @@
       "OVERRIDDEN": "Suchkonfiguration '{{config}}' überschrieben."
     },
     "CREATE_EDIT_DIALOG": {
-      "CREATE_FAILURE": "Fehler beim Erstellen der Suchkonfiguration"
+      "CREATE_FAILURE": "Fehler beim Speichern der Suchkonfiguration"
     },
     "LOAD_FAILURE": "Fehler beim Laden der Suchkonfigurationen",
     "DELETE_CONFIRM": {

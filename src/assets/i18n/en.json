@@ -39,7 +39,7 @@
       "OVERRIDDEN": "Search config '{{config}}' overwritten."
     },
     "CREATE_EDIT_DIALOG": {
-      "CREATE_FAILURE": "Failed to add search config"
+      "CREATE_FAILURE": "Failed to save search config"
     },
     "LOAD_FAILURE": "Failed to load search configs",
     "DELETE_CONFIRM": {
