@@ -4,7 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed'
 import { By } from '@angular/platform-browser'
 import { FormControl } from '@angular/forms'
 import { TranslateService } from '@ngx-translate/core'
-import { Observable, of } from 'rxjs'
+import { BehaviorSubject, Observable, of } from 'rxjs'
 
 import { AutoComplete } from 'primeng/autocomplete'
 
@@ -35,6 +35,17 @@ const configFixture = (id: string, name: string, readonly = false): SearchConfig
   template: '<app-ocx-create-or-edit-search-config-dialog></app-ocx-create-or-edit-search-config-dialog>'
 })
 class SaveAsDialogHostComponent {}
+
+// Embeds the dialog with CREATE only (no EDIT) and the shared fixture configs, so the harness can read
+// the inline "name already exists" message the way a portaled dialog renders it.
+@Component({
+  imports: [CreateOrEditSearchConfigDialogComponent],
+  template:
+    '<app-ocx-create-or-edit-search-config-dialog [existingConfigs]="configs" [canCreate]="true" [canEdit]="false"></app-ocx-create-or-edit-search-config-dialog>'
+})
+class CreateOnlySaveAsDialogHostComponent {
+  configs = of([configFixture('alpha', 'Alpha')])
+}
 
 describe('CreateOrEditSearchConfigDialogComponent', () => {
   const alpha = configFixture('alpha', 'Alpha')
@@ -70,6 +81,8 @@ describe('CreateOrEditSearchConfigDialogComponent', () => {
       saveColumns?: boolean
       frozeColumnSaveOption?: boolean
       frozeColumnSaveOptionExplanation?: string
+      canCreate?: boolean
+      canEdit?: boolean
     } = {}
   ): {
     component: CreateOrEditSearchConfigDialogComponent
@@ -89,6 +102,9 @@ describe('CreateOrEditSearchConfigDialogComponent', () => {
     if (opts.frozeColumnSaveOption !== undefined) component.frozeColumnSaveOption = opts.frozeColumnSaveOption
     if (opts.frozeColumnSaveOptionExplanation !== undefined)
       component.frozeColumnSaveOptionExplanation = opts.frozeColumnSaveOptionExplanation
+    // The permission flags are signal inputs, so they are set through the component ref.
+    if (opts.canCreate !== undefined) fixture.componentRef.setInput('canCreate', opts.canCreate)
+    if (opts.canEdit !== undefined) fixture.componentRef.setInput('canEdit', opts.canEdit)
     fixture.detectChanges()
     return { component, fixture }
   }
@@ -391,6 +407,259 @@ describe('CreateOrEditSearchConfigDialogComponent', () => {
       const { component } = render({ existingConfigs: configs })
       field(component, 'searchConfigName').setValue(undefined as any)
       expect(component.matchedConfigId).toBeUndefined()
+    })
+  })
+
+  describe('permission matrix', () => {
+    // Records every Save-gate emission so a test can read the latest one after driving the form.
+    const trackSaveEnabled = (component: CreateOrEditSearchConfigDialogComponent): boolean[] => {
+      const emissions: boolean[] = []
+      component.primaryButtonEnabled.subscribe((value) => emissions.push(value))
+      return emissions
+    }
+
+    describe('with CREATE only', () => {
+      const createOnly = { existingConfigs: configs, saveInputValues: true, canCreate: true, canEdit: false }
+
+      it('should suggest no names when the user may not overwrite', () => {
+        const { component } = render(createOnly)
+        expect(component.nameSuggestions).toStrictEqual([])
+      })
+
+      it('should suggest no names for a query when the user may not overwrite', () => {
+        const { component } = render(createOnly)
+        component.onNameQuery({ query: 'alph' } as any)
+        expect(component.nameSuggestions).toStrictEqual([])
+      })
+
+      it('should enable Save when a new name is typed', () => {
+        const { component } = render(createOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('Brand New')
+
+        expect(emissions.at(-1)).toBe(true)
+      })
+
+      it('should keep Save disabled when an existing name is typed', () => {
+        const { component } = render(createOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue(' alpha ')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+
+      it('should show the name-exists message instead of the overwrite warning when an existing name is typed', () => {
+        const { component, fixture } = render(createOnly)
+
+        field(component, 'searchConfigName').setValue('alpha')
+        fixture.detectChanges()
+
+        expect(component.nameExists).toBe(true)
+        expect(component.overwritePending).toBe(false)
+        expect(fixture.nativeElement.querySelector('.sc-search-config-overwrite-warning')).toBeNull()
+        expect(fixture.nativeElement.querySelector('.sc-search-config-name-exists')).toBeTruthy()
+      })
+
+      it('should name the matched config in the name-exists message when an existing name is typed', () => {
+        const { component } = render(createOnly)
+
+        field(component, 'searchConfigName').setValue('alpha')
+
+        expect(component.nameExistsMessage).toBe("'Alpha' already exists. Choose a different name.")
+      })
+
+      it('should enable Save without a name-exists message when a read-only name is typed', () => {
+        // A read-only config is never an overwrite target, so its name saves as a new config.
+        const { component } = render(createOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('gamma')
+
+        expect(component.nameExists).toBe(false)
+        expect(emissions.at(-1)).toBe(true)
+      })
+
+      it('should disable Save when the store gains a config of the typed name while the dialog is open', () => {
+        const live = new BehaviorSubject<SearchConfigInfo[]>([])
+        const { component } = render({ ...createOnly, existingConfigs: live })
+        const emissions = trackSaveEnabled(component)
+        field(component, 'searchConfigName').setValue('Alpha')
+        expect(emissions.at(-1)).toBe(true)
+
+        live.next([alpha])
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+    })
+
+    describe('with EDIT only', () => {
+      const editOnly = { existingConfigs: configs, saveInputValues: true, canCreate: false, canEdit: true }
+
+      it('should suggest the non-read-only names when the user may overwrite', () => {
+        const { component } = render(editOnly)
+        expect(component.nameSuggestions).toStrictEqual(['Alpha', 'Beta'])
+      })
+
+      it('should keep Save disabled when a new name is typed', () => {
+        const { component } = render(editOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('Brand New')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+
+      it('should show no inline message when a new name is typed', () => {
+        const { component, fixture } = render(editOnly)
+
+        field(component, 'searchConfigName').setValue('Brand New')
+        fixture.detectChanges()
+
+        expect(fixture.nativeElement.querySelector('.sc-search-config-overwrite-warning')).toBeNull()
+        expect(fixture.nativeElement.querySelector('.sc-search-config-name-exists')).toBeNull()
+      })
+
+      it('should keep Save disabled when a read-only name is typed', () => {
+        const { component } = render(editOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('gamma')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+
+      it('should enable Save when an existing non-read-only name is typed', () => {
+        const { component } = render(editOnly)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('alpha')
+
+        expect(emissions.at(-1)).toBe(true)
+      })
+
+      it('should keep Save disabled when an existing name is typed but no box is checked', () => {
+        const { component } = render({ ...editOnly, saveInputValues: false })
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('alpha')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+
+      it('should show the overwrite warning when an existing non-read-only name is typed', () => {
+        const { component, fixture } = render(editOnly)
+
+        field(component, 'searchConfigName').setValue('alpha')
+        fixture.detectChanges()
+
+        expect(fixture.nativeElement.querySelector('.sc-search-config-overwrite-warning')).toBeTruthy()
+        expect(fixture.nativeElement.querySelector('.sc-search-config-name-exists')).toBeNull()
+      })
+
+      it('should enable Save when the store gains a config of the typed name while the dialog is open', () => {
+        const live = new BehaviorSubject<SearchConfigInfo[]>([])
+        const { component } = render({ ...editOnly, existingConfigs: live })
+        const emissions = trackSaveEnabled(component)
+        field(component, 'searchConfigName').setValue('Alpha')
+        expect(emissions.at(-1)).toBe(false)
+
+        live.next([alpha])
+
+        expect(emissions.at(-1)).toBe(true)
+      })
+    })
+
+    describe('with CREATE and EDIT', () => {
+      const both = { existingConfigs: configs, saveInputValues: true, canCreate: true, canEdit: true }
+
+      it('should enable Save when a new name is typed', () => {
+        const { component } = render(both)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('Brand New')
+
+        expect(emissions.at(-1)).toBe(true)
+      })
+
+      it('should enable Save with the overwrite warning when an existing name is typed', () => {
+        const { component } = render(both)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('alpha')
+
+        expect(emissions.at(-1)).toBe(true)
+        expect(component.overwritePending).toBe(true)
+        expect(component.nameExists).toBe(false)
+      })
+    })
+
+    describe('with neither CREATE nor EDIT', () => {
+      const neither = { existingConfigs: configs, saveInputValues: true, canCreate: false, canEdit: false }
+
+      it('should keep Save disabled when a new name is typed', () => {
+        const { component } = render(neither)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('Brand New')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+
+      it('should keep Save disabled when an existing name is typed', () => {
+        const { component } = render(neither)
+        const emissions = trackSaveEnabled(component)
+
+        field(component, 'searchConfigName').setValue('alpha')
+
+        expect(emissions.at(-1)).toBe(false)
+      })
+    })
+
+    it('should allow both create and overwrite when no permission inputs are passed', () => {
+      const { component } = render({ existingConfigs: configs })
+      expect(component.canCreate()).toBe(true)
+      expect(component.canEdit()).toBe(true)
+    })
+
+    it('should leave the name-exists message empty when no config is matched', () => {
+      const { component } = render({ existingConfigs: configs, canEdit: false })
+      field(component, 'searchConfigName').setValue('Brand New')
+      expect(component.nameExistsMessage).toBe('')
+    })
+
+    it('should read the name-exists message through the harness when CREATE only and an existing name is typed', async () => {
+      const hostFixture = TestBed.createComponent(CreateOnlySaveAsDialogHostComponent)
+      hostFixture.detectChanges()
+      const harness = await TestbedHarnessEnvironment.documentRootLoader(hostFixture).getHarness(
+        CreateOrEditSearchConfigDialogHarness
+      )
+
+      await (await harness.getSearchConfigInputHarness()).setValue('Alpha')
+      hostFixture.detectChanges()
+
+      expect(await harness.getNameExistsMessage()).toBe("'Alpha' already exists. Choose a different name.")
+      expect(await harness.getOverwriteWarning()).toBeNull()
+    })
+
+    it('should read the overwrite warning through the harness when an existing name may be overwritten', async () => {
+      const hostFixture = TestBed.createComponent(SaveAsDialogHostComponent)
+      const component = hostFixture.debugElement.children[0]
+        .componentInstance as CreateOrEditSearchConfigDialogComponent
+      component.existingConfigs = configs
+      hostFixture.detectChanges()
+      const harness = await TestbedHarnessEnvironment.documentRootLoader(hostFixture).getHarness(
+        CreateOrEditSearchConfigDialogHarness
+      )
+
+      await (await harness.getSearchConfigInputHarness()).setValue('Alpha')
+      hostFixture.detectChanges()
+
+      expect(await harness.getOverwriteWarning()).toBe(
+        "'Alpha' already exists. Saving overwrites it with its search criteria only."
+      )
+      expect(await harness.getNameExistsMessage()).toBeNull()
     })
   })
 

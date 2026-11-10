@@ -88,6 +88,12 @@ export type SaveSearchConfigResult = {
  * optimistic locking checks. A failed create, fetch or update fires the shared error toast and resolves
  * to `undefined`; the success toast (`saved` / `overwritten`, `success` severity) is fired here per path.
  *
+ * Permissions: `dialogInputs.canCreate` / `canEdit` (the user's `SEARCHCONFIG#CREATE` / `#EDIT`) are
+ * passed to the dialog, which gates Save on them — a new name needs `canCreate`, an existing
+ * (non-read-only) name is an overwrite and needs `canEdit` — and, without `canEdit`, suggests no names
+ * and shows "name already exists" for an existing one. A confirmed result therefore always carries a
+ * permitted save.
+ *
  * Overwrite semantics: the saved aspects fully replace the stored content. The single exception is when
  * "Save columns" is locked (`frozeColumnSaveOption`): the stored columns are kept (the box is forced
  * off, so they can never be re-checked) and only the search criteria are replaced.
@@ -117,6 +123,8 @@ export function saveSearchConfig(
     saveColumns: boolean
     frozeColumnSaveOption: boolean
     frozeColumnSaveOptionExplanation?: string
+    canCreate: boolean
+    canEdit: boolean
   }
 ): Observable<SaveSearchConfigResult | undefined> {
   return portalDialogService
@@ -131,7 +139,9 @@ export function saveSearchConfig(
           saveInputValues: dialogInputs.saveInputValues,
           saveColumns: dialogInputs.saveColumns,
           frozeColumnSaveOption: dialogInputs.frozeColumnSaveOption,
-          frozeColumnSaveOptionExplanation: dialogInputs.frozeColumnSaveOptionExplanation
+          frozeColumnSaveOptionExplanation: dialogInputs.frozeColumnSaveOptionExplanation,
+          canCreate: dialogInputs.canCreate,
+          canEdit: dialogInputs.canEdit
         }
       },
       'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE',

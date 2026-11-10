@@ -200,7 +200,9 @@ export class OneCXSearchConfigComponent implements ocxRemoteComponent, ocxRemote
         saveInputValues: true,
         saveColumns: false,
         frozeColumnSaveOption: !(vm.isColumnGroupComponentActive && vm.layout === 'table'),
-        frozeColumnSaveOptionExplanation
+        frozeColumnSaveOptionExplanation,
+        canCreate: this.canCreate(),
+        canEdit: this.canEdit()
       }
     ).subscribe((response) => {
       if (response?.id) {
@@ -213,6 +215,21 @@ export class OneCXSearchConfigComponent implements ocxRemoteComponent, ocxRemote
         })
       }
     })
+  }
+
+  // The Save As permission matrix: `SEARCHCONFIG#CREATE` saves a new name, `SEARCHCONFIG#EDIT`
+  // overwrites an existing (non-read-only) one. Save As is offered with either; the dialog receives
+  // both flags and gates its Save button (and the name suggestions) on them.
+  canCreate(): boolean {
+    return this.permissions.includes('SEARCHCONFIG#CREATE')
+  }
+
+  canEdit(): boolean {
+    return this.permissions.includes('SEARCHCONFIG#EDIT')
+  }
+
+  canSaveAs(): boolean {
+    return this.canCreate() || this.canEdit()
   }
 
   // Structural directives (ocxIfPermission/ngIf) are not rendered inside PrimeNG's #item template,

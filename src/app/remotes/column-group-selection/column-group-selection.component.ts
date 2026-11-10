@@ -272,6 +272,21 @@ export class OneCXColumnGroupSelectionComponent
     })
   }
 
+  // The Save As permission matrix: `SEARCHCONFIG#CREATE` saves a new name, `SEARCHCONFIG#EDIT`
+  // overwrites an existing (non-read-only) one. Save As is offered with either; the dialog receives
+  // both flags and gates its Save button (and the name suggestions) on them.
+  canCreate(): boolean {
+    return this.permissions.includes('SEARCHCONFIG#CREATE')
+  }
+
+  canEdit(): boolean {
+    return this.permissions.includes('SEARCHCONFIG#EDIT')
+  }
+
+  canSaveAs(): boolean {
+    return this.canCreate() || this.canEdit()
+  }
+
   // Whether the given (saved config) row renders a delete affordance: the SEARCHCONFIG#DELETE
   // permission plus the read-only flag. Predefined group rows resolve to no config and are never
   // deletable.
@@ -352,7 +367,9 @@ export class OneCXColumnGroupSelectionComponent
         panelStyleClass: SEARCH_CONFIG_AUTOCOMPLETE_PANEL_STYLE_CLASS,
         saveInputValues: false,
         saveColumns: true,
-        frozeColumnSaveOption: false
+        frozeColumnSaveOption: false,
+        canCreate: this.canCreate(),
+        canEdit: this.canEdit()
       }
     ).subscribe((response) => {
       if (response?.id) {

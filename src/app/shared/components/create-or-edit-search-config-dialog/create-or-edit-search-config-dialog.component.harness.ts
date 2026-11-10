@@ -35,6 +35,21 @@ export class CreateOrEditSearchConfigDialogHarness extends ContentContainerCompo
     return this.getHarness(InputHarness.with({ id: 'searchConfigName' }))
   }
 
+  /** The inline overwrite warning text (an existing name the user may overwrite), or `null` when absent. */
+  async getOverwriteWarning(): Promise<string | null> {
+    const message = await this.locatorForOptional('.sc-search-config-overwrite-warning')()
+    return message ? (await message.text()).trim() : null
+  }
+
+  /**
+   * The inline "name already exists" message text (an existing name the user may not overwrite, i.e.
+   * no `SEARCHCONFIG#EDIT`), or `null` when absent.
+   */
+  async getNameExistsMessage(): Promise<string | null> {
+    const message = await this.locatorForOptional('.sc-search-config-name-exists')()
+    return message ? (await message.text()).trim() : null
+  }
+
   async getSaveColumnsLabel(): Promise<string | null | undefined> {
     const labels = await this.locatorForAll('div > label')()
     return labels.at(1)?.text()

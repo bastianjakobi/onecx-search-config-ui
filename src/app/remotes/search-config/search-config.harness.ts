@@ -95,6 +95,17 @@ export class OneCXSearchConfigHarness extends ContentContainerComponentHarness {
     return null
   }
 
+  /**
+   * Whether the config select is the input group's last child, so PrimeNG's own input-group rule
+   * (`.p-inputgroup > .p-floatlabel:last-child > .p-component`) rounds its end corners too. That is the
+   * case when the joined Save As addon is absent (neither `SEARCHCONFIG#CREATE` nor `#EDIT`); with the
+   * addon present the addon carries the end corners instead. `false` when no select renders.
+   */
+  async isSelectEndRounded(): Promise<boolean> {
+    const select = await this.locatorForOptional('p-select')()
+    return (await select?.matchesSelector('.p-inputgroup > .p-floatlabel:last-child > .p-component')) ?? false
+  }
+
   private async openPanel(): Promise<void> {
     await (await this.getConfigSelect())?.open()
   }

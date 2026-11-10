@@ -35,6 +35,7 @@
       "OVERWRITE_COLUMNS": "'{{name}}' already exists. Saving overwrites it with its saved columns only.",
       "OVERWRITE_BOTH": "'{{name}}' already exists. Saving overwrites its search criteria and its saved columns.",
       "OVERWRITE_KEEP_COLUMNS": "'{{name}}' already exists. Saving overwrites its search criteria; its saved columns are kept.",
+      "NAME_EXISTS": "'{{name}}' already exists. Choose a different name.",
       "SAVED": "Search config '{{config}}' saved.",
       "OVERRIDDEN": "Search config '{{config}}' overwritten."
     },
