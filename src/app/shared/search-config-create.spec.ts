@@ -3,7 +3,7 @@ import { BehaviorSubject, Subject, lastValueFrom, of, throwError } from 'rxjs'
 import { PortalDialogService } from '@onecx/angular-accelerator'
 import { AppStateService, PortalMessageService } from '@onecx/angular-integration-interface'
 
-import { SearchConfigAPIService, SearchConfigInfo } from 'src/app/shared/generated'
+import { SearchConfig, SearchConfigAPIService, SearchConfigInfo } from 'src/app/shared/generated'
 import { advancedViewMode, SEARCH_CONFIG_DIALOG_WIDTH } from './constants'
 import { loadSearchConfigInfos, saveSearchConfig } from './search-config-create'
 import { SearchConfigStore } from './search-config.store'
@@ -31,6 +31,23 @@ describe('search-config-create', () => {
     isAdvanced: false
   }
 
+  // The full stored config the overwrite fetches before updating: it carries the server-side
+  // `modificationCount` / `fieldListVersion` the list entry lacks, and its own stored columns (distinct
+  // from the list entry's) so the tests prove the request is built from the fetched config.
+  const storedConfig: SearchConfig = {
+    appId: 'stored-app',
+    productName: 'stored-product',
+    page: 'stored-page',
+    modificationCount: 3,
+    fieldListVersion: 2,
+    id: 'config-id',
+    name: 'Config-1',
+    columns: ['fetched-col'],
+    values: { stored: 'value' },
+    isReadonly: false,
+    isAdvanced: false
+  }
+
   const createdConfig: SearchConfigInfo = {
     ...existingConfig,
     id: 'new-id',
@@ -45,6 +62,7 @@ describe('search-config-create', () => {
 
   const openDialog = jest.fn()
   const getSearchConfigInfos = jest.fn()
+  const getSearchConfig = jest.fn()
   const create = jest.fn()
   const update = jest.fn()
   const info = jest.fn()
@@ -72,6 +90,7 @@ describe('search-config-create', () => {
   beforeEach(() => {
     openDialog.mockReset()
     getSearchConfigInfos.mockReset()
+    getSearchConfig.mockReset()
     create.mockReset()
     update.mockReset()
     info.mockReset()
@@ -81,6 +100,7 @@ describe('search-config-create', () => {
     portalDialogService = { openDialog } as unknown as PortalDialogService
     searchConfigService = {
       getSearchConfigInfos,
+      getSearchConfig,
       createSearchConfig: create,
       updateSearchConfig: update
     } as unknown as SearchConfigAPIService
@@ -398,6 +418,7 @@ describe('search-config-create', () => {
           result: { searchConfigName: '  CONFIG-1 ', saveInputValues: true, saveColumns: true }
         } as any)
       )
+      getSearchConfig.mockReturnValue(of({ config: storedConfig }))
       update.mockReturnValue(of({ configs: [existingConfig] }))
 
       const response = await lastValueFrom(
@@ -415,11 +436,11 @@ describe('search-config-create', () => {
       expect(response).toStrictEqual({ id: 'config-id', configs: [existingConfig], overwritten: true })
       expect(update).toHaveBeenCalledWith('config-id', {
         searchConfig: {
-          appId: 'appId',
-          productName: 'product',
-          page: 'page-name',
-          modificationCount: 0,
-          fieldListVersion: 0,
+          appId: 'stored-app',
+          productName: 'stored-product',
+          page: 'stored-page',
+          modificationCount: 3,
+          fieldListVersion: 2,
           id: 'config-id',
           name: 'Config-1',
           columns: ['col-1'],
@@ -428,6 +449,7 @@ describe('search-config-create', () => {
           isAdvanced: true
         }
       })
+      expect(getSearchConfig).toHaveBeenCalledWith('config-id')
       expect(create).not.toHaveBeenCalled()
       expect(success).toHaveBeenCalledWith({
         summaryKey: 'SEARCH_CONFIG.SAVE_AS_DIALOG.OVERRIDDEN',
@@ -443,6 +465,7 @@ describe('search-config-create', () => {
           result: { searchConfigName: 'Config-1', saveInputValues: true, saveColumns: false }
         } as any)
       )
+      getSearchConfig.mockReturnValue(of({ config: storedConfig }))
       update.mockReturnValue(of({ configs: [existingConfig] }))
 
       await lastValueFrom(
@@ -459,11 +482,11 @@ describe('search-config-create', () => {
 
       expect(update).toHaveBeenCalledWith('config-id', {
         searchConfig: {
-          appId: 'appId',
-          productName: 'product',
-          page: 'page-name',
-          modificationCount: 0,
-          fieldListVersion: 0,
+          appId: 'stored-app',
+          productName: 'stored-product',
+          page: 'stored-page',
+          modificationCount: 3,
+          fieldListVersion: 2,
           id: 'config-id',
           name: 'Config-1',
           columns: [],
@@ -474,13 +497,14 @@ describe('search-config-create', () => {
       })
     })
 
-    it('should keep the stored columns and replace only the criteria when "Save columns" is locked', async () => {
+    it('should keep the fetched stored columns and replace only the criteria when "Save columns" is locked', async () => {
       openDialog.mockReturnValue(
         of({
           button: 'primary',
           result: { searchConfigName: 'Config-1', saveInputValues: true, saveColumns: false }
         } as any)
       )
+      getSearchConfig.mockReturnValue(of({ config: storedConfig }))
       update.mockReturnValue(of({ configs: [existingConfig] }))
 
       await lastValueFrom(
@@ -490,17 +514,17 @@ describe('search-config-create', () => {
         })
       )
 
-      // The displayed columns are ignored while the option is locked: the stored columns survive.
+      // The displayed columns are ignored while the option is locked: the fetched stored columns survive.
       expect(update).toHaveBeenCalledWith('config-id', {
         searchConfig: {
-          appId: 'appId',
-          productName: 'product',
-          page: 'page-name',
-          modificationCount: 0,
-          fieldListVersion: 0,
+          appId: 'stored-app',
+          productName: 'stored-product',
+          page: 'stored-page',
+          modificationCount: 3,
+          fieldListVersion: 2,
           id: 'config-id',
           name: 'Config-1',
-          columns: ['stored-col'],
+          columns: ['fetched-col'],
           values: { f1: 'v1' },
           isReadonly: false,
           isAdvanced: true
@@ -616,6 +640,7 @@ describe('search-config-create', () => {
           result: { searchConfigName: 'Config-1', saveInputValues: true, saveColumns: true }
         } as any)
       )
+      getSearchConfig.mockReturnValue(of({ config: storedConfig }))
       update.mockReturnValue(throwError(() => failure))
 
       const response = await lastValueFrom(
@@ -631,6 +656,37 @@ describe('search-config-create', () => {
       )
 
       expect(response).toBeUndefined()
+      expect(success).not.toHaveBeenCalled()
+      expect(error).toHaveBeenCalledWith({ summaryKey: 'SEARCH_CONFIG.CREATE_EDIT_DIALOG.CREATE_FAILURE' })
+      expect(consoleSpy).toHaveBeenCalledWith(failure)
+      consoleSpy.mockRestore()
+    })
+
+    it('should fire the error toast and resolve to undefined without updating when the fetch of the stored config fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error')
+      const failure = new Error('fetch-failed')
+      openDialog.mockReturnValue(
+        of({
+          button: 'primary',
+          result: { searchConfigName: 'Config-1', saveInputValues: true, saveColumns: true }
+        } as any)
+      )
+      getSearchConfig.mockReturnValue(throwError(() => failure))
+
+      const response = await lastValueFrom(
+        saveSearchConfig(
+          portalDialogService,
+          searchConfigService,
+          messageService,
+          appStateService,
+          store,
+          pageName,
+          baseDialogInputs
+        )
+      )
+
+      expect(response).toBeUndefined()
+      expect(update).not.toHaveBeenCalled()
       expect(success).not.toHaveBeenCalled()
       expect(error).toHaveBeenCalledWith({ summaryKey: 'SEARCH_CONFIG.CREATE_EDIT_DIALOG.CREATE_FAILURE' })
       expect(consoleSpy).toHaveBeenCalledWith(failure)

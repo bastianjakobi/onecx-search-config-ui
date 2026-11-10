@@ -1273,6 +1273,18 @@ describe('OneCXColumnGroupSelectionComponent', () => {
         columns: ['new-col', 'new-col2'],
         values: {}
       }
+      jest.spyOn(searchConfigServiceSpy, 'getSearchConfig').mockReturnValue(
+        of({
+          config: {
+            ...config,
+            appId: 'my-app',
+            productName: 'my-product',
+            page: 'my-page',
+            modificationCount: 5,
+            fieldListVersion: 1
+          }
+        } as any)
+      )
       jest.spyOn(searchConfigServiceSpy, 'updateSearchConfig').mockReturnValue(of({ configs: [savedConfig] } as any))
 
       store.patchState({
@@ -1293,13 +1305,14 @@ describe('OneCXColumnGroupSelectionComponent', () => {
       component.onColumnGroupSaveAs()
       tick(500)
 
+      expect(searchConfigServiceSpy.getSearchConfig).toHaveBeenCalledWith(config.id)
       expect(searchConfigServiceSpy.updateSearchConfig).toHaveBeenCalledWith(config.id, {
         searchConfig: {
           appId: 'my-app',
           productName: 'my-product',
           page: 'my-page',
-          modificationCount: 0,
-          fieldListVersion: 0,
+          modificationCount: 5,
+          fieldListVersion: 1,
           id: config.id,
           name: config.name,
           columns: ['new-col', 'new-col2'],

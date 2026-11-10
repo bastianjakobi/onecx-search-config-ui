@@ -124,6 +124,17 @@ const config: SearchConfigFixture = {
   isAdvanced: false
 }
 
+// The full stored config the overwrite fetches before updating (it carries the server-side
+// `modificationCount` / `fieldListVersion` the list entry lacks).
+const storedConfig = {
+  ...config,
+  appId: 'my-app',
+  productName: 'my-product',
+  page: 'my_page',
+  modificationCount: 5,
+  fieldListVersion: 1
+}
+
 const readonlyConfig: SearchConfigFixture = {
   id: '4',
   name: 'config-readonly',
@@ -732,6 +743,9 @@ describe('OneCXSearchConfigComponent', () => {
         columns: [],
         isAdvanced: true
       }
+      jest
+        .spyOn(searchConfigServiceSpy, 'getSearchConfig')
+        .mockReturnValue(of({ config: { ...storedConfig, columns: ['stored-col'] } } as any))
       jest.spyOn(searchConfigServiceSpy, 'updateSearchConfig').mockReturnValue(of({ configs: [savedConfig] } as any))
 
       store.patchState({
@@ -766,13 +780,14 @@ describe('OneCXSearchConfigComponent', () => {
       } as any)
       tick(500)
 
+      expect(searchConfigServiceSpy.getSearchConfig).toHaveBeenCalledWith(config.id)
       expect(searchConfigServiceSpy.updateSearchConfig).toHaveBeenCalledWith(config.id, {
         searchConfig: {
           appId: 'my-app',
           productName: 'my-product',
           page: 'my_page',
-          modificationCount: 0,
-          fieldListVersion: 0,
+          modificationCount: 5,
+          fieldListVersion: 1,
           id: config.id,
           name: config.name,
           columns: [],
@@ -816,6 +831,7 @@ describe('OneCXSearchConfigComponent', () => {
           button: 'primary'
         } as any)
       )
+      jest.spyOn(searchConfigServiceSpy, 'getSearchConfig').mockReturnValue(of({ config: storedConfig } as any))
       jest.spyOn(searchConfigServiceSpy, 'updateSearchConfig').mockReturnValue(throwError(() => error))
 
       component.onSearchConfigSave({

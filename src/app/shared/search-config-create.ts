@@ -83,9 +83,10 @@ export type SaveSearchConfigResult = {
  * creates the config for a new name or overwrites the matched existing (non-read-only) config. The
  * matched config is resolved here against `dialogInputs.existingConfigs` (trimmed, case-insensitive)
  * at confirm time, so the helper and the dialog's inline warning agree on the overwrite target without
- * the dialog having to carry the id through its result. A failed create or update fires the shared
- * error toast and resolves to `undefined`; the success toast (`saved` / `overwritten`, `success`
- * severity) is fired here per path.
+ * the dialog having to carry the id through its result. An overwrite first fetches the stored config
+ * and builds the update from it, so the request carries the stored `modificationCount` the backend's
+ * optimistic locking checks. A failed create, fetch or update fires the shared error toast and resolves
+ * to `undefined`; the success toast (`saved` / `overwritten`, `success` severity) is fired here per path.
  *
  * Overwrite semantics: the saved aspects fully replace the stored content. The single exception is when
  * "Save columns" is locked (`frozeColumnSaveOption`): the stored columns are kept (the box is forced
@@ -152,57 +153,55 @@ export function saveSearchConfig(
         // The config list is read live at confirm time (a store selector, not a snapshot taken when the
         // dialog opened) so the decision agrees with the dialog's suggestion and overwrite warning,
         // which track the same live store value while the dialog is open.
-        const configs = existingConfigs ?? []
         const typedName = (result.searchConfigName ?? '').trim().toLowerCase()
-        const existingConfig = configs.find(
+        const existingConfig = existingConfigs.find(
           (config) => !config.isReadonly && config.name.trim().toLowerCase() === typedName
         )
-        const isOverwrite = existingConfig !== undefined
         // The trimmed name: the field is required to be non-blank (the dialog's Save gate trims the
         // name), so what is stored and toasted is never a whitespace-only name.
         const name = (result.searchConfigName ?? '').trim()
-        // The columns the request carries: the displayed ones when the box is checked, otherwise the
-        // stored columns of the matched config only while "Save columns" is locked (kept, not dropped),
-        // and none otherwise.
-        let columns: string[]
-        if (result.saveColumns) {
-          columns = pageData.displayedColumnsIds
-        } else if (isOverwrite && dialogInputs.frozeColumnSaveOption) {
-          columns = existingConfig.columns
-        } else {
-          columns = []
-        }
         const values = result.saveInputValues ? parseFieldValues(pageData.fieldValues ?? {}) : {}
         const isAdvanced = result.saveInputValues ? pageData.viewMode === advancedViewMode : false
 
-        if (isOverwrite) {
-          const updateRequest: UpdateSearchConfigRequest = {
-            searchConfig: {
-              appId: currentMfe.appId,
-              productName: currentMfe.productName,
-              page,
-              modificationCount: 0,
-              fieldListVersion: 0,
-              id: existingConfig.id,
-              name: existingConfig.name,
-              columns,
-              values,
-              isReadonly: existingConfig.isReadonly,
-              isAdvanced
-            }
-          }
-          return searchConfigService.updateSearchConfig(existingConfig.id, updateRequest).pipe(
-            map((response) => {
-              portalMessageService.success({
-                summaryKey: 'SEARCH_CONFIG.SAVE_AS_DIALOG.OVERRIDDEN',
-                summaryParameters: { config: existingConfig.name }
-              })
-              return { id: existingConfig.id, configs: response.configs, overwritten: true } as SaveSearchConfigResult
+        if (existingConfig) {
+          // The stored config is fetched first: the list entries (`SearchConfigInfo`) carry no
+          // `modificationCount`, and the backend rejects an update whose count does not match the stored
+          // one (optimistic locking). The request is built from the fetched config, replacing only what
+          // Save As saves; the canonical stored name is kept. While "Save columns" is locked the stored
+          // columns are kept, otherwise the displayed columns are saved when the box is checked and none
+          // when it is not.
+          return searchConfigService.getSearchConfig(existingConfig.id).pipe(
+            switchMap(({ config: storedConfig }) => {
+              let columns: string[] = []
+              if (result.saveColumns) {
+                columns = pageData.displayedColumnsIds
+              } else if (dialogInputs.frozeColumnSaveOption) {
+                columns = storedConfig.columns
+              }
+              const updateRequest: UpdateSearchConfigRequest = {
+                searchConfig: { ...storedConfig, columns, values, isAdvanced }
+              }
+              return searchConfigService.updateSearchConfig(storedConfig.id, updateRequest).pipe(
+                map((response) => {
+                  portalMessageService.success({
+                    summaryKey: 'SEARCH_CONFIG.SAVE_AS_DIALOG.OVERRIDDEN',
+                    summaryParameters: { config: storedConfig.name }
+                  })
+                  return {
+                    id: storedConfig.id,
+                    configs: response.configs,
+                    overwritten: true
+                  } as SaveSearchConfigResult
+                })
+              )
             }),
             catchError(saveSearchConfigFailure(portalMessageService))
           )
         }
 
+        // A new name never has stored columns to keep: the displayed columns when the box is checked,
+        // otherwise none.
+        const columns = result.saveColumns ? pageData.displayedColumnsIds : []
         const createRequest: CreateSearchConfigRequest = {
           appId: currentMfe.appId,
           productName: currentMfe.productName,
@@ -229,9 +228,9 @@ export function saveSearchConfig(
 }
 
 /**
- * The shared failure path for the create and update requests: log the error, fire the create/edit
- * error toast (a failed Save As is still a failed create-or-update of the config) and resolve to
- * `undefined`.
+ * The shared failure path for the create request and the overwrite's fetch and update requests: log
+ * the error, fire the create/edit error toast (a failed Save As is still a failed create-or-update of
+ * the config) and resolve to `undefined`.
  */
 function saveSearchConfigFailure(
   portalMessageService: PortalMessageService
