@@ -502,15 +502,6 @@ describe('CreateOrEditSearchConfigDialogComponent', () => {
         expect(component.nameSuggestions).toStrictEqual(['Alpha', 'Beta'])
       })
 
-      it('should keep Save disabled when a new name is typed', () => {
-        const { component } = render(editOnly)
-        const emissions = trackSaveEnabled(component)
-
-        field(component, 'searchConfigName').setValue('Brand New')
-
-        expect(emissions.at(-1)).toBe(false)
-      })
-
       it('should show no inline message when a new name is typed', () => {
         const { component, fixture } = render(editOnly)
 
@@ -521,22 +512,17 @@ describe('CreateOrEditSearchConfigDialogComponent', () => {
         expect(fixture.nativeElement.querySelector('.sc-search-config-name-exists')).toBeNull()
       })
 
-      it('should keep Save disabled when a read-only name is typed', () => {
+      it.each([
+        { kind: 'a new name', name: 'Brand New', enabled: false },
+        { kind: 'a read-only name', name: 'gamma', enabled: false },
+        { kind: 'an existing non-read-only name', name: 'alpha', enabled: true }
+      ])('should set Save enabled to $enabled when $kind is typed', ({ name, enabled }) => {
         const { component } = render(editOnly)
         const emissions = trackSaveEnabled(component)
 
-        field(component, 'searchConfigName').setValue('gamma')
+        field(component, 'searchConfigName').setValue(name)
 
-        expect(emissions.at(-1)).toBe(false)
-      })
-
-      it('should enable Save when an existing non-read-only name is typed', () => {
-        const { component } = render(editOnly)
-        const emissions = trackSaveEnabled(component)
-
-        field(component, 'searchConfigName').setValue('alpha')
-
-        expect(emissions.at(-1)).toBe(true)
+        expect(emissions.at(-1)).toBe(enabled)
       })
 
       it('should keep Save disabled when an existing name is typed but no box is checked', () => {
