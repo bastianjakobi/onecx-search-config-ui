@@ -20,6 +20,12 @@
     </p-message>
   }
 
+  @if (nameExists) {
+    <p-message severity="error" role="alert" aria-live="polite" class="sc-search-config-name-exists">
+      {{ nameExistsMessage }}
+    </p-message>
+  }
+
   <div class="sc-search-config-option">
     <p-checkbox inputId="saveInputValuesId" formControlName="saveInputValues" [binary]="true"></p-checkbox>
     <label for="saveInputValuesId">{{ 'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE_CRITERIA' | translate }}</label>

@@ -60,8 +60,9 @@ ocx-column-group-selection-component {
      * first/last-child rules round the select's start corners and the joined Save As addon's end
      * corners. A flat `border-radius` or the scoped longhands here would lose to PrimeNG's
      * higher-specificity rules; the custom property wins by cascade instead. When the Save As
-     * addon is absent (no `SEARCHCONFIG#CREATE`), the float label is the group's last child, so the
-     * same token rounds the select's end corners too — no separate `.no-save` rule needed. */
+     * addon is absent (neither `SEARCHCONFIG#CREATE` nor `#EDIT`), the float label is the group's
+     * last child, so the same token rounds the select's end corners too — no separate `.no-save`
+     * rule needed. */
     --p-inputgroup-addon-border-radius: var(--onecx-search-config-radius);
   }
 

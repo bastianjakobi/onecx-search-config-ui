@@ -7,7 +7,8 @@ import {
   Input,
   OnInit,
   Output,
-  inject
+  inject,
+  input
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms'
@@ -115,6 +116,21 @@ export class CreateOrEditSearchConfigDialogComponent
     return this._frozeColumnSaveOptionExplanation
   }
 
+  /**
+   * Whether the user may create a new config (`SEARCHCONFIG#CREATE`). Without it a new name keeps Save
+   * disabled, so only an existing (non-read-only) name — an overwrite — can be saved. Defaults to
+   * `true` so the dialog keeps its create-and-overwrite behaviour when the host passes no permissions.
+   */
+  readonly canCreate = input(true)
+
+  /**
+   * Whether the user may overwrite an existing config (`SEARCHCONFIG#EDIT`). Without it the name field
+   * suggests nothing, and an existing (non-read-only) name shows the inline "name already exists"
+   * message instead of the overwrite warning and keeps Save disabled. Defaults to `true` (see
+   * `canCreate`).
+   */
+  readonly canEdit = input(true)
+
   @Output() primaryButtonEnabled: EventEmitter<boolean> = new EventEmitter()
 
   searchConfigFormGroup: FormGroup = new FormGroup({
@@ -141,9 +157,26 @@ export class CreateOrEditSearchConfigDialogComponent
     return this._nameSuggestions
   }
 
-  /** Whether the name field currently matches an existing non-read-only config (an overwrite is pending). */
+  /**
+   * Whether the name field currently matches an existing non-read-only config and the user may
+   * overwrite it (`canEdit`): an overwrite is pending and the inline overwrite warning is shown.
+   */
   get overwritePending(): boolean {
-    return this.matchedConfigId !== undefined
+    return this.canEdit() && this.matchedConfigId !== undefined
+  }
+
+  /**
+   * Whether the name field matches an existing non-read-only config the user may not overwrite (no
+   * `canEdit`): the inline "name already exists" message is shown and Save stays disabled.
+   */
+  get nameExists(): boolean {
+    return !this.canEdit() && this.matchedConfigId !== undefined
+  }
+
+  /** The inline "name already exists" message, naming the matched config (empty when nothing matches). */
+  get nameExistsMessage(): string {
+    const name = this.matchedConfig?.name
+    return name ? this.translateService.instant('SEARCH_CONFIG.SAVE_AS_DIALOG.NAME_EXISTS', { name }) : ''
   }
 
   // The latest emission of the `existingConfigs` observable (the live store value), kept by the
@@ -192,9 +225,15 @@ export class CreateOrEditSearchConfigDialogComponent
     // changes.
     this.existingConfigs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((configs: SearchConfigInfo[]) => {
       this._existingConfigs = configs ?? []
-      this._configNames = this._existingConfigs.filter((config) => !config.isReadonly).map((config) => config.name)
+      // Suggestions only offer overwrite targets, so without `canEdit` the field suggests nothing.
+      this._configNames = this.canEdit()
+        ? this._existingConfigs.filter((config) => !config.isReadonly).map((config) => config.name)
+        : []
       this._nameSuggestions = this._configNames
       this._matchedConfigId = this.matchName(this.searchConfigFormGroup.value.searchConfigName)
+      // The Save gate depends on the match (create vs overwrite permission), so a store change behind
+      // an open dialog re-evaluates it too.
+      this.recomputePrimaryButtonEnabled()
       this.changeDetectorRef.markForCheck()
     })
 
@@ -204,8 +243,9 @@ export class CreateOrEditSearchConfigDialogComponent
     this.searchConfigFormGroup.valueChanges
       .pipe(startWith(this.searchConfigFormGroup.value))
       .subscribe((values: CreateOrEditSearchDialogContent) => {
-        this.primaryButtonEnabled.emit(this.primaryButtonEnabledFor(values))
+        // Match first: the Save gate reads it to pick the create or the overwrite permission.
         this._matchedConfigId = this.matchName(values.searchConfigName)
+        this.primaryButtonEnabled.emit(this.primaryButtonEnabledFor(values))
         this.changeDetectorRef.markForCheck()
       })
   }
@@ -238,9 +278,12 @@ export class CreateOrEditSearchConfigDialogComponent
     // A non-empty name (trimmed, so a whitespace-only name can never enable the button) plus at least
     // one checked box. While "Save columns" is locked it is forced off, so only the criteria box can
     // contribute in that case. The `!!` normalises the disabled `saveColumns` control (absent from
-    // `formGroup.value` when disabled) to a strict boolean.
+    // `formGroup.value` when disabled) to a strict boolean. The save itself must be permitted: an
+    // existing (non-read-only) name is an overwrite and needs `canEdit`, any other name is a create
+    // and needs `canCreate`.
     const name = (values.searchConfigName ?? '').trim()
-    return name.length > 0 && !!(values.saveInputValues || values.saveColumns)
+    const permitted = this.matchedConfigId === undefined ? this.canCreate() : this.canEdit()
+    return name.length > 0 && !!(values.saveInputValues || values.saveColumns) && permitted
   }
 
   private matchName(name: string | undefined): string | undefined {

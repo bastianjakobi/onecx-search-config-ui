@@ -82,7 +82,9 @@ describe('search-config-create', () => {
     saveInputValues: true,
     saveColumns: true,
     frozeColumnSaveOption: false,
-    frozeColumnSaveOptionExplanation: 'EXPLANATION'
+    frozeColumnSaveOptionExplanation: 'EXPLANATION',
+    canCreate: true,
+    canEdit: false
   }
 
   const pageName = of('page-name')
@@ -249,7 +251,9 @@ describe('search-config-create', () => {
             saveInputValues: true,
             saveColumns: true,
             frozeColumnSaveOption: false,
-            frozeColumnSaveOptionExplanation: 'EXPLANATION'
+            frozeColumnSaveOptionExplanation: 'EXPLANATION',
+            canCreate: true,
+            canEdit: false
           }
         },
         'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE',

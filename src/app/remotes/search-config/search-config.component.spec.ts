@@ -31,7 +31,7 @@ import {
   provideRemoteComponentsServiceMock,
   provideShellCapabilityServiceMock
 } from '@onecx/angular-integration-interface/mocks'
-import { provideTranslateTestingService } from '@onecx/angular-testing'
+import { PButtonHarness, provideTranslateTestingService } from '@onecx/angular-testing'
 import { REMOTE_COMPONENT_CONFIG, RemoteComponentConfig } from '@onecx/angular-utils'
 import { getWindowState } from '@onecx/angular-webcomponents'
 
@@ -459,7 +459,9 @@ describe('OneCXSearchConfigComponent', () => {
             saveInputValues: true,
             saveColumns: false,
             frozeColumnSaveOption: true,
-            frozeColumnSaveOptionExplanation: 'SEARCH_CONFIG.COLUMN_GROUP_COMPONENT_INACTIVE'
+            frozeColumnSaveOptionExplanation: 'SEARCH_CONFIG.COLUMN_GROUP_COMPONENT_INACTIVE',
+            canCreate: false,
+            canEdit: false
           }
         },
         saveButton,
@@ -506,7 +508,9 @@ describe('OneCXSearchConfigComponent', () => {
             saveInputValues: true,
             saveColumns: false,
             frozeColumnSaveOption: true,
-            frozeColumnSaveOptionExplanation: 'SEARCH_CONFIG.TABLE_VIEW_INACTIVE'
+            frozeColumnSaveOptionExplanation: 'SEARCH_CONFIG.TABLE_VIEW_INACTIVE',
+            canCreate: false,
+            canEdit: false
           }
         },
         saveButton,
@@ -553,7 +557,9 @@ describe('OneCXSearchConfigComponent', () => {
             saveInputValues: true,
             saveColumns: false,
             frozeColumnSaveOption: false,
-            frozeColumnSaveOptionExplanation: ''
+            frozeColumnSaveOptionExplanation: '',
+            canCreate: false,
+            canEdit: false
           }
         },
         saveButton,
@@ -1875,6 +1881,94 @@ describe('OneCXSearchConfigHarness (remote host element)', () => {
     const h = await harness()
     expect(await h.getConfigSelect()).toBeNull()
     expect(await h.getSelectItems()).toEqual([])
+  })
+
+  describe('permission matrix', () => {
+    // Rows of the Save As matrix: the permissions granted next to VIEW, whether Save As renders, and the
+    // create/overwrite capability the dialog receives.
+    const saveAsMatrix: Array<[string, string[], boolean, boolean, boolean]> = [
+      ['CREATE only', ['SEARCHCONFIG#CREATE'], true, true, false],
+      ['EDIT only', ['SEARCHCONFIG#EDIT'], true, false, true],
+      ['CREATE and EDIT', ['SEARCHCONFIG#CREATE', 'SEARCHCONFIG#EDIT'], true, true, true],
+      ['neither CREATE nor EDIT', ['SEARCHCONFIG#DELETE'], false, false, false]
+    ]
+
+    it.each(saveAsMatrix)(
+      'should render the Save As button only with CREATE or EDIT when the user has %s',
+      async (_label, granted, visible) => {
+        childComponent.permissions = ['SEARCHCONFIG#VIEW', ...granted]
+        await patchConfigs([config])
+
+        expect((await (await harness()).getSaveAsButton()) !== null).toBe(visible)
+      }
+    )
+
+    it.each(saveAsMatrix)(
+      'should round the select end corners only while Save As is hidden when the user has %s',
+      async (_label, granted, visible) => {
+        childComponent.permissions = ['SEARCHCONFIG#VIEW', ...granted]
+        await patchConfigs([config])
+
+        // Without the joined addon the float label is the input group's last child, so PrimeNG's own
+        // input-group rule rounds the select's end corners; with it the addon carries them.
+        expect(await (await harness()).isSelectEndRounded()).toBe(!visible)
+      }
+    )
+
+    it.each(saveAsMatrix.filter(([, , visible]) => visible))(
+      'should pass the create and overwrite capability to the Save As dialog when the user has %s',
+      async (_label, granted, _visible, canCreate, canEdit) => {
+        ;(portalDialogHostMock.openDialog as jest.Mock).mockReturnValue(of(undefined))
+        childComponent.permissions = ['SEARCHCONFIG#VIEW', ...granted]
+        await patchConfigs([config])
+
+        await ((await (await harness()).getSaveAsButton()) as PButtonHarness).click()
+
+        expect(portalDialogHostMock.openDialog).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({ inputs: expect.objectContaining({ canCreate, canEdit }) }),
+          expect.anything(),
+          expect.anything(),
+          expect.anything()
+        )
+      }
+    )
+
+    it('should render nothing when every permission but VIEW is granted', async () => {
+      childComponent.permissions = ['SEARCHCONFIG#CREATE', 'SEARCHCONFIG#EDIT', 'SEARCHCONFIG#DELETE']
+      await patchConfigs([config])
+
+      expect(hostFixture.nativeElement.querySelector('p-inputgroup')).toBeNull()
+      expect(await (await harness()).getConfigSelect()).toBeNull()
+    })
+
+    it('should report no rounded select when VIEW is missing and no select renders', async () => {
+      childComponent.permissions = []
+      await patchConfigs([config])
+
+      expect(await (await harness()).isSelectEndRounded()).toBe(false)
+    })
+
+    it('should render the trash button for a non-read-only config when the user has DELETE', async () => {
+      childComponent.permissions = ['SEARCHCONFIG#VIEW', 'SEARCHCONFIG#DELETE']
+      await patchConfigs([config])
+
+      expect(await (await harness()).getDeleteButton(config.name)).not.toBeNull()
+    })
+
+    it('should render no trash button for a read-only config when the user has DELETE', async () => {
+      childComponent.permissions = ['SEARCHCONFIG#VIEW', 'SEARCHCONFIG#DELETE']
+      await patchConfigs([config, readonlyConfig])
+
+      expect(await (await harness()).getDeleteButton(readonlyConfig.name)).toBeNull()
+    })
+
+    it('should render no trash button when the user has CREATE and EDIT but not DELETE', async () => {
+      childComponent.permissions = ['SEARCHCONFIG#VIEW', 'SEARCHCONFIG#CREATE', 'SEARCHCONFIG#EDIT']
+      await patchConfigs([config])
+
+      expect(await (await harness()).getDeleteButton(config.name)).toBeNull()
+    })
   })
 })
 

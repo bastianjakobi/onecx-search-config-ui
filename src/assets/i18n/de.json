@@ -35,6 +35,7 @@
       "OVERWRITE_COLUMNS": "'{{name}}' existiert bereits. Speichern ersetzt es nur mit seinen gespeicherten Spalten.",
       "OVERWRITE_BOTH": "'{{name}}' existiert bereits. Speichern ersetzt seine Suchkriterien und seine gespeicherten Spalten.",
       "OVERWRITE_KEEP_COLUMNS": "'{{name}}' existiert bereits. Speichern ersetzt seine Suchkriterien; seine gespeicherten Spalten bleiben erhalten.",
+      "NAME_EXISTS": "'{{name}}' existiert bereits. Bitte wählen Sie einen anderen Namen.",
       "SAVED": "Suchkonfiguration '{{config}}' gespeichert.",
       "OVERRIDDEN": "Suchkonfiguration '{{config}}' überschrieben."
     },

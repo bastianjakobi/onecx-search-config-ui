@@ -77,18 +77,20 @@
           </span>
         }
       </p-floatlabel>
-      <p-inputgroup-addon
-        class="sc-search-config-save-as"
-        *ocxIfPermission="'SEARCHCONFIG#CREATE'; permissions: permissions"
-      >
-        <p-button
-          [id]="saveAsButtonId"
-          [label]="'SEARCH_CONFIG.SAVE_AS.LABEL' | translate"
-          [icon]="saveAsIcon"
-          [ariaLabel]="'SEARCH_CONFIG.SAVE_AS.ARIA_LABEL' | translate"
-          (onClick)="onSearchConfigSave(vm)"
-        ></p-button>
-      </p-inputgroup-addon>
+      <!-- Save As needs CREATE or EDIT; `*ocxIfPermission` requires every listed permission, so the
+           OR is resolved by `canSaveAs()`. Without the addon the float label is the group's last child
+           and PrimeNG's input-group rules round the select's end corners as well. -->
+      @if (canSaveAs()) {
+        <p-inputgroup-addon class="sc-search-config-save-as">
+          <p-button
+            [id]="saveAsButtonId"
+            [label]="'SEARCH_CONFIG.SAVE_AS.LABEL' | translate"
+            [icon]="saveAsIcon"
+            [ariaLabel]="'SEARCH_CONFIG.SAVE_AS.ARIA_LABEL' | translate"
+            (onClick)="onSearchConfigSave(vm)"
+          ></p-button>
+        </p-inputgroup-addon>
+      }
     </p-inputgroup>
   }
 </div>

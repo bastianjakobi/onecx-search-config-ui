@@ -46,7 +46,8 @@ host's scoped styling reaches it. The delete-confirm dialog's Delete button has 
 (`ocx-search-config-delete-button`) as the stable test and style anchor; its red look comes from
 `severity: 'danger'`, i.e. the `--p-button-danger-*` tokens. The Save As dialog's autocomplete
 suggestions panel targets the `sc-search-config-save-as-panel` style hook via `panelStyleClass`. The
-Save As dialog's overwrite warning (shown when the typed name already exists and the save would
-overwrite an existing config) is a PrimeNG `p-message` with the stable anchor class
+Save As dialog's overwrite warning (shown when the typed name already exists and the user may
+overwrite it, i.e. has `SEARCHCONFIG#EDIT`) is a PrimeNG `p-message` with the stable anchor class
 `sc-search-config-overwrite-warning`, carried as the element's `class` so tests and styles can target
-it directly. The "Saved searches" section is delivered in a later ticket (#964).
+it directly. Without `SEARCHCONFIG#EDIT` an existing name shows the "name already exists" `p-message`
+instead, with the stable anchor class `sc-search-config-name-exists`. The "Saved searches" section is delivered in a later ticket (#964).
