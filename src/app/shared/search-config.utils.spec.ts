@@ -130,6 +130,25 @@ describe('search-config.utils', () => {
       expect(parsed).toEqual({ a: '1', empty: '', none: '', missing: '', n: '2' })
     })
 
+    it('should keep booleans and big integers as strings when parsing field values', () => {
+      expect(parseFieldValues({ flag: true, big: BigInt(10) })).toEqual({ flag: 'true', big: '10' })
+    })
+
+    it('should join multi-value fields with commas when parsing field values', () => {
+      expect(parseFieldValues({ statuses: ['active', 'locked'], list: [1, null, 'x'] })).toEqual({
+        statuses: 'active,locked',
+        list: '1,,x'
+      })
+    })
+
+    it('should store objects as JSON when parsing field values', () => {
+      expect(parseFieldValues({ range: { from: 1, to: 2 } })).toEqual({ range: '{"from":1,"to":2}' })
+    })
+
+    it('should store an empty string when a value cannot be serialized', () => {
+      expect(parseFieldValues({ fn: () => 1 })).toEqual({ fn: '' })
+    })
+
     it('should normalize date values to ISO strings when a value is a date', () => {
       const parsed = parseFieldValues({ date: new Date(Date.UTC(2024, 0, 15, 12, 0, 0)) })
       expect(parsed).toEqual({ date: '2024-01-15T12:00:00.000Z' })

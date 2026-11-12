@@ -93,7 +93,24 @@ function toFieldValue(value: unknown): string {
   if (!value) {
     return ''
   }
-  return isValidDate(value) ? value.toISOString() : String(value)
+  if (isValidDate(value)) {
+    return value.toISOString()
+  }
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    // Multi-value fields keep their comma-separated form.
+    return value.map((item) => toFieldValue(item)).join(',')
+  }
+  // Any other value (e.g. an object from a custom form control) is stored as JSON instead of
+  // `[object Object]`.
+  return JSON.stringify(value) ?? ''
 }
 
 export function areColumnsEqual(c1: Array<string>, c2: Array<string>): boolean {
