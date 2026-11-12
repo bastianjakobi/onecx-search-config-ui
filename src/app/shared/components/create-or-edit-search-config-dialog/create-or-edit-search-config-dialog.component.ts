@@ -32,7 +32,6 @@ export type CreateOrEditSearchDialogContent = {
 @Component({
   selector: 'app-ocx-create-or-edit-search-config-dialog',
   templateUrl: './create-or-edit-search-config-dialog.component.html',
-  styleUrls: ['./create-or-edit-search-config-dialog.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

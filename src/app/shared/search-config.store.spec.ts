@@ -287,6 +287,41 @@ describe('SearchConfigStore', () => {
       ])
     })
 
+    it('should replace the current config as well when the current config is overwritten with criteria', () => {
+      store.patchState({
+        searchConfigs: [testConfigValuesAndColumns],
+        currentSearchConfig: testConfigValuesAndColumns
+      })
+      const overwrittenConfig: SearchConfigInfo = { ...testConfigValuesAndColumns, values: { key_1: 'updated' } }
+
+      store.upsertSearchConfig(overwrittenConfig)
+
+      expect(store.state().currentSearchConfig).toBe(overwrittenConfig)
+    })
+
+    it('should clear the current config when the current config is overwritten without criteria', () => {
+      store.patchState({
+        searchConfigs: [testConfigValuesAndColumns],
+        currentSearchConfig: testConfigValuesAndColumns
+      })
+      const overwrittenConfig: SearchConfigInfo = { ...testConfigValuesAndColumns, values: {} }
+
+      store.upsertSearchConfig(overwrittenConfig)
+
+      expect(store.state().currentSearchConfig).toBeUndefined()
+    })
+
+    it('should keep the current config when another config is upserted', () => {
+      store.patchState({
+        searchConfigs: [testConfigOnlyValues],
+        currentSearchConfig: testConfigOnlyValues
+      })
+
+      store.upsertSearchConfig(testConfigOnlyColumns)
+
+      expect(store.state().currentSearchConfig).toBe(testConfigOnlyValues)
+    })
+
     it('should send an update message when a config is upserted', (done) => {
       store.patchState({
         searchConfigs: [testConfigOnlyValues, testConfigValuesAndColumns]
@@ -1365,7 +1400,7 @@ describe('SearchConfigStore', () => {
       })
     })
 
-    it('should parse date values with toISOString and stringify plain values when parsing a mixed field value payload', () => {
+    it('should parse date values with toISOString, stringify plain values and keep empty fields as empty strings when parsing a mixed field value payload', () => {
       const dateValue = new Date('2024-03-05T12:00:00.000Z')
 
       expect(
@@ -1379,6 +1414,8 @@ describe('SearchConfigStore', () => {
       ).toEqual({
         createdAt: dateValue.toISOString(),
         status: 'active',
+        count: '',
+        empty: '',
         truthyButNotDate: 'true'
       })
     })

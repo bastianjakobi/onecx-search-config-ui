@@ -219,7 +219,14 @@ export class SearchConfigStore extends ComponentStore<SearchConfigState> {
       ? state.searchConfigs.map((config) => (config.id === searchConfig.id ? searchConfig : config))
       : state.searchConfigs.concat(searchConfig)
 
+    // An overwrite of the header's current config replaces it as well, so `modified` is derived from the
+    // stored content. When the overwrite dropped the criteria, the header no longer lists the config and
+    // is cleared to its placeholder, as on delete.
+    const isCurrentSearchConfigOverwritten = state.currentSearchConfig?.id === searchConfig.id
     const stateToUpdate: Partial<SearchConfigState> = {
+      ...(isCurrentSearchConfigOverwritten && {
+        currentSearchConfig: hasValues(searchConfig) ? searchConfig : undefined
+      }),
       searchConfigs
     }
     this.sendUpdateMessage(stateToUpdate, state)
@@ -384,7 +391,9 @@ export class SearchConfigStore extends ComponentStore<SearchConfigState> {
 
   // Grouped options for the column-group config select, built here so the template binds them and the
   // leaf carries its saved `config` (no name-based lookup in the row). Predefined leaves are marked
-  // `isPredefined` so they are never confused with a saved config of the same name.
+  // `isPredefined` so they are never confused with a saved config of the same name. A group without
+  // items (e.g. "Saved" while the user has no config that stores columns) is left out, so the panel
+  // never shows an empty group header.
   //
   // The group and predefined-leaf labels are emitted as raw i18n keys (the saved-leaf labels are the
   // config's own `name`); the consuming remote translates them reactively so a language switch is
@@ -428,7 +437,7 @@ export class SearchConfigStore extends ComponentStore<SearchConfigState> {
             config
           }))
         }
-      ]
+      ].filter((group) => group.items.length > 0)
     }
   })
 

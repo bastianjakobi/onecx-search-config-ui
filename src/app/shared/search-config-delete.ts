@@ -5,7 +5,11 @@ import { PortalDialogService } from '@onecx/angular-accelerator'
 import { PortalMessageService } from '@onecx/angular-integration-interface'
 
 import { SearchConfigAPIService, SearchConfigInfo } from 'src/app/shared/generated'
-import { SEARCH_CONFIG_DELETE_BUTTON_ID, SEARCH_CONFIG_DIALOG_WIDTH } from './constants'
+import {
+  SEARCH_CONFIG_DELETE_BUTTON_ID,
+  SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID,
+  SEARCH_CONFIG_DIALOG_WIDTH
+} from './constants'
 
 /**
  * Opens the reusable delete-confirm dialog and deletes the config when it is confirmed.
@@ -40,8 +44,11 @@ export function confirmAndDeleteSearchConfig(
         id: SEARCH_CONFIG_DELETE_BUTTON_ID,
         severity: 'danger'
       },
-      'SEARCH_CONFIG.DELETE_CONFIRM.CANCEL',
-      { width: SEARCH_CONFIG_DIALOG_WIDTH }
+      {
+        key: 'SEARCH_CONFIG.DELETE_CONFIRM.CANCEL',
+        id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID
+      },
+      { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
     )
     .pipe(
       mergeMap((dialogResult) => {

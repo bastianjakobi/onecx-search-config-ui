@@ -40,9 +40,14 @@ non-blank and at least one box is checked.
 - **Locked "Save columns":** when Save As is opened from the header and the column selector is absent
   or the layout is not `table`, the box is disabled and unchecked, with an explanation. An overwrite
   then replaces only the criteria and keeps the stored columns.
+- **Empty search:** "Save search criteria" also saves empty fields. Every field the host reports is
+  stored, empty ones as `""`, so the config is listed in the header and selecting it clears the fields.
+  Empty fields are ignored when deciding whether a config is modified. The host only reports its fields
+  once its search form has changed, so an untouched form saves no criteria.
 
-After saving, the config is selected in every select that lists it, and a toast confirms "saved" or
-"overwritten".
+After saving, the config is selected in every select that lists it (the header lists configs that
+store criteria, the column selector configs that store columns; the other select keeps its selection),
+and a toast confirms "saved" or "overwritten".
 
 **Delete.** Deletable rows show a trash button. Pressing Delete on a highlighted option in the open
 list does the same. A confirm dialog ("Delete search config?") warns that this cannot be undone; there
@@ -80,20 +85,28 @@ are scoped to the remote's host element (`ocx-search-config-component` / `ocx-co
 or to stable `styleClass` / `panelStyleClass` hooks and fixed button ids — never `::ng-deep`, never
 unscoped global selectors. Remotes inherit the host theme and set no theme of their own.
 
-Remote-owned custom styles live in `src/styles.scss`. There is exactly one exception: a portaled
-dialog (the Save As dialog) may carry a layout-only component stylesheet
-(`create-or-edit-search-config-dialog.component.scss`). Because the dialog is portaled outside the
-remote element, it cannot reach the remote's host-scoped rules, so its own stylesheet lays out its
-form (a column of stacked blocks) using PrimeNG tokens (`var(--p-confirmdialog-content-gap)`,
-`var(--p-button-gap)`) for its gaps. It is layout only: no hard-coded sizes, no `::ng-deep`, and every
-value is a PrimeNG token or a `--onecx-search-config-*` variable — the same rule as `styles.scss`.
+All remote-owned custom styles live in `src/styles.scss`, including the layout of the portaled
+dialogs. Component stylesheets are not used: the shell rewrites the `--p-*` tokens to the remote's
+token prefix only in `styles.css`, so a `--p-*` token in a component stylesheet would resolve to
+nothing.
+
+**Host roots inside the shell's `@scope`.** The shell wraps `styles.css` in
+`@scope([data-style-id=…]) to ([data-style-isolation])`, and the remote's host element *is* that scope
+root. A selector without `:scope` is implicitly a descendant of the scope root, so a plain
+`ocx-search-config-component .x` never matches. Host-rooted rules therefore use
+`ocx-search-config-component:is(:scope, *) .x` (in `styles.scss` via the `$sc-hosts` /
+`$sc-column-host` variables), which matches the host as the scope root inside the shell and keeps the
+plain descendant meaning when the remote runs standalone. The dialogs are portaled into a wrapper that
+is its own scope root, so their rules are rooted at `app-ocx-create-or-edit-search-config-dialog` and at
+fixed button ids.
 
 ### `--onecx-search-config-*` variables
 
 | Variable | Purpose | Value |
 | --- | --- | --- |
-| `--onecx-search-config-width` | Width of each remote's input group (config select + joined Save As button). | `18rem` (app-owned; PrimeNG has no width token for the input group) |
-| `--onecx-search-config-height` | Height of the config select control and the joined Save As button. | `2.5rem` (app-owned; PrimeNG sizes the control from padding, not a height token) |
+| `--onecx-search-config-width` | Minimum width of each remote's input group (config select + joined Save As button); the group grows when a translated Save As label needs more room. Also the maximum width of the option panel, so long names are cut off with an ellipsis. | `18rem` (app-owned; PrimeNG has no width token for the input group) |
+| `--onecx-search-config-select-width` | Width of the select part of the input group, so its float label stays readable next to a long Save As label. | `13rem` (app-owned) |
+| `--onecx-search-config-height` | Height of the config select control and the joined Save As button. | `auto` (the natural PrimeNG form-field height, so the group lines up with the host's inputs and buttons) |
 | `--onecx-search-config-radius` | Outer corner radius of the input group (select and joined Save As), applied via `--p-inputgroup-addon-border-radius`. | `var(--p-select-border-radius)` |
 | `--onecx-search-config-border-color` | Border color of the config select control — **reserved for a later ticket**: no selector reads it yet, so it is not applied. | `var(--p-select-border-color)` |
 | `--onecx-search-config-panel-max-height` | Maximum height of the opened option list before it scrolls (the select's `scrollHeight`). | `16rem` (app-owned layout cap) |
@@ -110,10 +123,21 @@ light-red hover background are sourced from `--onecx-search-config-delete-color`
 dialogs are portaled outside the remote element; each carries the remote's `data-style-id`, so the
 host's scoped styling reaches it. The delete-confirm dialog's Delete button has a fixed id
 (`ocx-search-config-delete-button`) as the stable test and style anchor; its red look comes from
-`severity: 'danger'`, i.e. the `--p-button-danger-*` tokens. The Save As dialog's autocomplete
+`severity: 'danger'`, i.e. the `--p-button-danger-*` tokens. Both dialogs show the close (X) button, and
+their Cancel button has the fixed id `ocx-search-config-dialog-cancel-button`, which gives it the
+outlined look through the `--p-button-outlined-primary-*` tokens. The Save As dialog's autocomplete
 suggestions panel targets the `sc-search-config-save-as-panel` style hook via `panelStyleClass`. The
 Save As dialog's overwrite warning (shown when the typed name already exists and the user may
 overwrite it, i.e. has `SEARCHCONFIG#EDIT`) is a PrimeNG `p-message` with the stable anchor class
 `sc-search-config-overwrite-warning`, carried as the element's `class` so tests and styles can target
 it directly. Without `SEARCHCONFIG#EDIT` an existing name shows the "name already exists" `p-message`
 instead, with the stable anchor class `sc-search-config-name-exists`.
+
+## Host translations
+
+Some texts are passed in by the host as its own i18n keys, e.g. the predefined column group keys
+(`TENANT_SEARCH.PREDEFINED_GROUP.DEFAULT`) and the column selector's placeholder. Besides its own
+`assets/i18n/` the remote therefore also loads the translations of the host MFE that embeds it
+(`<currentMfe.remoteBaseUrl>assets/i18n/`, see `src/app/shared/host-translation-path.ts`). The remote's
+own translations are merged last, so they win when a key exists in both. When no current MFE is
+published (standalone), only the remote's own translations are loaded.

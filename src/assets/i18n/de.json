@@ -10,7 +10,7 @@
   "SEARCH_CONFIG": {
     "SELECT": {
       "LABEL": "Suchkonfiguration",
-      "NO_CONFIGS_LABEL": "Keine Suchkonfigurationen",
+      "NO_CONFIGS_LABEL": "Keine gespeichert",
       "FILTER_PLACEHOLDER": "Nach Name filtern",
       "NO_MATCH": "Keine passenden Suchkonfigurationen",
       "MODIFIED": "Geändert"

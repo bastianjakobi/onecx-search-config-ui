@@ -19,6 +19,12 @@ export const COLUMN_GROUP_SAVE_AS_BUTTON_ID = 'ocx-column-group-save-as-button'
 export const SEARCH_CONFIG_DELETE_BUTTON_ID = 'ocx-search-config-delete-button'
 
 /**
+ * Fixed id of the Cancel button in both search-config dialogs (Save As and delete confirm). Stable
+ * style anchor for the outlined Cancel look in `src/styles.scss`, and test anchor.
+ */
+export const SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID = 'ocx-search-config-dialog-cancel-button'
+
+/**
  * Dialog width (shared by the delete-confirm and Save As dialogs), applied through
  * `PortalDialogConfig.width`. Part of the same cross-remote contract as the fixed Delete id (see
  * `--onecx-search-config-dialog-width` in `src/styles.scss`); both remotes open the dialogs at this

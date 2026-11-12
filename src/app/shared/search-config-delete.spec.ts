@@ -4,7 +4,11 @@ import { PortalMessageService } from '@onecx/angular-integration-interface'
 import { lastValueFrom, of, throwError } from 'rxjs'
 
 import { SearchConfigAPIService, SearchConfigInfo } from 'src/app/shared/generated'
-import { SEARCH_CONFIG_DELETE_BUTTON_ID, SEARCH_CONFIG_DIALOG_WIDTH } from './constants'
+import {
+  SEARCH_CONFIG_DELETE_BUTTON_ID,
+  SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID,
+  SEARCH_CONFIG_DIALOG_WIDTH
+} from './constants'
 import { confirmAndDeleteSearchConfig } from './search-config-delete'
 
 describe('confirmAndDeleteSearchConfig', () => {
@@ -61,8 +65,8 @@ describe('confirmAndDeleteSearchConfig', () => {
         id: SEARCH_CONFIG_DELETE_BUTTON_ID,
         severity: 'danger'
       },
-      'SEARCH_CONFIG.DELETE_CONFIRM.CANCEL',
-      { width: SEARCH_CONFIG_DIALOG_WIDTH }
+      { key: 'SEARCH_CONFIG.DELETE_CONFIRM.CANCEL', id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID },
+      { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
     )
   })
 

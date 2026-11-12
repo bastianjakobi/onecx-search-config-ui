@@ -48,6 +48,7 @@ import {
   advancedViewMode,
   basicViewMode,
   SEARCH_CONFIG_AUTOCOMPLETE_PANEL_STYLE_CLASS,
+  SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID,
   SEARCH_CONFIG_DIALOG_WIDTH,
   SEARCH_CONFIG_SAVE_AS_BUTTON_ID
 } from 'src/app/shared/constants'
@@ -410,7 +411,7 @@ describe('OneCXSearchConfigComponent', () => {
   describe('on config save (Save As)', () => {
     const dialogTitle = 'SEARCH_CONFIG.SAVE_AS_DIALOG.HEADER'
     const saveButton = 'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE'
-    const cancelButton = 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL'
+    const cancelButton = { key: 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL', id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID }
 
     const mockMfe = () => {
       const appState = TestBed.inject(AppStateService)
@@ -466,7 +467,7 @@ describe('OneCXSearchConfigComponent', () => {
         },
         saveButton,
         cancelButton,
-        { width: SEARCH_CONFIG_DIALOG_WIDTH }
+        { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
       )
       expectExistingConfigsSelector(dialogServiceSpy, [config])
     }))
@@ -515,7 +516,7 @@ describe('OneCXSearchConfigComponent', () => {
         },
         saveButton,
         cancelButton,
-        { width: SEARCH_CONFIG_DIALOG_WIDTH }
+        { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
       )
       expectExistingConfigsSelector(dialogServiceSpy, [])
     }))
@@ -564,7 +565,7 @@ describe('OneCXSearchConfigComponent', () => {
         },
         saveButton,
         cancelButton,
-        { width: SEARCH_CONFIG_DIALOG_WIDTH }
+        { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
       )
       expectExistingConfigsSelector(dialogServiceSpy, [config, readonlyConfig])
     }))
@@ -737,6 +738,65 @@ describe('OneCXSearchConfigComponent', () => {
       expect(upsertSpy).toHaveBeenCalledWith(config)
       expect(setSpy).toHaveBeenCalledTimes(1)
       expect(setSpy).toHaveBeenCalledWith(config)
+    }))
+
+    const saveFromHeader = (savedConfig: SearchConfigFixture, saveInputValues: boolean, saveColumns: boolean) => {
+      mockMfe()
+      jest.spyOn(searchConfigServiceSpy, 'createSearchConfig').mockReturnValue(
+        of({
+          id: savedConfig.id,
+          configs: [savedConfig]
+        } as any)
+      )
+      store.patchState({
+        searchConfigs: [],
+        pageName: 'my_page',
+        fieldValues: { k: '' },
+        displayedColumnsIds: ['col-1'],
+        viewMode: basicViewMode,
+        selectedGroupKey: 'default'
+      })
+      jest.spyOn(portalDialogSpy, 'openDialog').mockReturnValue(
+        of({
+          result: { searchConfigName: savedConfig.name, saveInputValues, saveColumns },
+          button: 'primary'
+        } as any)
+      )
+      component.onSearchConfigSave({
+        searchConfigs: [],
+        isColumnGroupComponentActive: true,
+        layout: 'table',
+        currentConfig: undefined
+      } as any)
+      tick(500)
+    }
+
+    it('should select the saved config in the header and the column selector when it stores criteria and columns', fakeAsync(() => {
+      const setConfigSpy = jest.spyOn(store, 'setCurrentConfig')
+      const setGroupSpy = jest.spyOn(store, 'setSelectedGroupKey')
+
+      saveFromHeader(config, true, true)
+
+      expect(setGroupSpy).toHaveBeenCalledWith(config.name)
+      expect(setConfigSpy).toHaveBeenCalledWith(config)
+    }))
+
+    it('should select the saved config only in the column selector and keep the header current config when it stores columns only', fakeAsync(() => {
+      const setConfigSpy = jest.spyOn(store, 'setCurrentConfig')
+      const setGroupSpy = jest.spyOn(store, 'setSelectedGroupKey')
+
+      saveFromHeader(onlyColumnsConfig, false, true)
+
+      expect(setGroupSpy).toHaveBeenCalledWith(onlyColumnsConfig.name)
+      expect(setConfigSpy).not.toHaveBeenCalled()
+    }))
+
+    it('should store the empty search fields when the criteria are saved while every field is empty', fakeAsync(() => {
+      saveFromHeader(onlyValuesConfig, true, false)
+
+      expect(searchConfigServiceSpy.createSearchConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ values: { k: '' }, columns: [] })
+      )
     }))
 
     it('should overwrite an existing config when its name is saved, replacing the stored content', fakeAsync(() => {

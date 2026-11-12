@@ -46,7 +46,7 @@ import {
 import { COLUMN_GROUP_SAVE_AS_BUTTON_ID, SEARCH_CONFIG_AUTOCOMPLETE_PANEL_STYLE_CLASS } from 'src/app/shared/constants'
 import { confirmAndDeleteSearchConfig } from 'src/app/shared/search-config-delete'
 import { loadSearchConfigInfos, saveSearchConfig } from 'src/app/shared/search-config-create'
-import { hasColumns } from 'src/app/shared/search-config.utils'
+import { hasColumns, hasValues } from 'src/app/shared/search-config.utils'
 
 @Component({
   selector: 'app-ocx-column-group-selection',
@@ -346,13 +346,13 @@ export class OneCXColumnGroupSelectionComponent
     })
   }
 
-  // Save As saves a NEW config that stores the currently displayed columns (never the input values):
-  // the Save As dialog is opened with `saveColumns` pre-selected. The column option is not frozen here
-  // (this entry point owns the column selector, so it is editable). The dialog, request and toasts live
-  // in the shared `saveSearchConfig` helper (so both remotes open the same dialog); on success we upsert
-  // the saved config into the store and select it (upsert, not add, so an overwrite replaces the stored
-  // content in place). The header's current config is also re-pointed only when the saved config stores
-  // columns, so a columns-only save surfaces in the header select.
+  // Save As opens the Save As dialog with `saveColumns` pre-selected. The column option is not frozen
+  // here (this entry point owns the column selector, so it is editable). The dialog, request and toasts
+  // live in the shared `saveSearchConfig` helper (so both remotes open the same dialog); on success we
+  // upsert the saved config into the store (upsert, not add, so an overwrite replaces the stored content
+  // in place) and select it in every input that lists it: the column selector lists configs that store
+  // columns, the header lists configs that store criteria. A columns-only save therefore keeps the
+  // header's current config instead of pointing it at a config the header cannot list.
   onColumnGroupSaveAs() {
     saveSearchConfig(
       this.portalDialogService,
@@ -378,10 +378,10 @@ export class OneCXColumnGroupSelectionComponent
           config && this.searchConfigStore.upsertSearchConfig(config)
         })
         setTimeout(() => {
-          config && this.searchConfigStore.setSelectedGroupKey(config.name)
+          config && hasColumns(config) && this.searchConfigStore.setSelectedGroupKey(config.name)
         })
         setTimeout(() => {
-          config && hasColumns(config) && this.searchConfigStore.setCurrentConfig(config)
+          config && hasValues(config) && this.searchConfigStore.setCurrentConfig(config)
         })
       }
     })

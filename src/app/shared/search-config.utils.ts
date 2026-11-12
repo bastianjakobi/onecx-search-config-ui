@@ -27,8 +27,17 @@ export function hasOnlyColumns(config: SearchConfigInfo): boolean {
   return !hasValues(config) && hasColumns(config)
 }
 
+/**
+ * Whether two sets of field values are equal. Empty fields are ignored and the key order does not
+ * matter, so a config that stores a field as empty (`{ a: '' }`) equals a page that reports the field
+ * as empty or not at all, and configs saved before empty fields were stored still compare correctly.
+ */
 export function areValuesEqual(v1: FieldValues, v2: FieldValues): boolean {
-  return JSON.stringify(v1) === JSON.stringify(v2)
+  const filled = (values: FieldValues) =>
+    Object.entries(values)
+      .filter(([, value]) => value !== '')
+      .sort(([k1], [k2]) => k1.localeCompare(k2))
+  return JSON.stringify(filled(v1)) === JSON.stringify(filled(v2))
 }
 
 /**
@@ -64,16 +73,27 @@ export function isSearchConfigModified(config: SearchConfigInfo | undefined, pag
   return modified
 }
 
+/**
+ * Converts the host's field values into stored string values. Every field the host reports is kept;
+ * an empty field (any falsy value) is stored as `''`. This keeps "Save search criteria" meaningful when
+ * all fields are empty: the config stores the empty search (and is listed in the header), and
+ * selecting it clears the fields again.
+ */
 export function parseFieldValues(values: UnparsedFieldValues): FieldValues {
-  return Object.entries(values)
-    .filter(([key, value]) => value)
-    .reduce(
-      (acc: { [key: string]: string }, [key, value]) => ({
-        ...acc,
-        [key]: isValidDate(value) ? value.toISOString() : String(value)
-      }),
-      {}
-    )
+  return Object.entries(values).reduce(
+    (acc: { [key: string]: string }, [key, value]) => ({
+      ...acc,
+      [key]: toFieldValue(value)
+    }),
+    {}
+  )
+}
+
+function toFieldValue(value: unknown): string {
+  if (!value) {
+    return ''
+  }
+  return isValidDate(value) ? value.toISOString() : String(value)
 }
 
 export function areColumnsEqual(c1: Array<string>, c2: Array<string>): boolean {

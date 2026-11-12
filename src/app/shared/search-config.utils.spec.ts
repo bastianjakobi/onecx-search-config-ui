@@ -101,6 +101,15 @@ describe('search-config.utils', () => {
       expect(areValuesEqual({ a: '1' }, { a: '2' })).toBe(false)
       expect(areValuesEqual({ a: '1' }, {})).toBe(false)
     })
+
+    it('should be true when one side stores a field as empty and the other omits it', () => {
+      expect(areValuesEqual({ a: '1', b: '' }, { a: '1' })).toBe(true)
+      expect(areValuesEqual({ a: '' }, {})).toBe(true)
+    })
+
+    it('should be true when the same field values are listed in a different order', () => {
+      expect(areValuesEqual({ a: '1', b: '2' }, { b: '2', a: '1' })).toBe(true)
+    })
   })
 
   describe('areColumnsEqual', () => {
@@ -116,9 +125,9 @@ describe('search-config.utils', () => {
   })
 
   describe('parseFieldValues', () => {
-    it('should drop falsy values and keep the remaining ones as strings when parsing field values', () => {
-      const parsed = parseFieldValues({ a: '1', empty: '' })
-      expect(parsed).toEqual({ a: '1' })
+    it('should keep empty fields as empty strings and the remaining ones as strings when parsing field values', () => {
+      const parsed = parseFieldValues({ a: '1', empty: '', none: null, missing: undefined, n: 2 })
+      expect(parsed).toEqual({ a: '1', empty: '', none: '', missing: '', n: '2' })
     })
 
     it('should normalize date values to ISO strings when a value is a date', () => {

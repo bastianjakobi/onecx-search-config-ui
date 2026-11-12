@@ -48,6 +48,7 @@ import {
   basicViewMode,
   COLUMN_GROUP_SAVE_AS_BUTTON_ID,
   SEARCH_CONFIG_AUTOCOMPLETE_PANEL_STYLE_CLASS,
+  SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID,
   SEARCH_CONFIG_DIALOG_WIDTH
 } from 'src/app/shared/constants'
 import { CreateOrEditSearchConfigDialogComponent } from 'src/app/shared/components/create-or-edit-search-config-dialog/create-or-edit-search-config-dialog.component'
@@ -665,13 +666,40 @@ describe('OneCXColumnGroupSelectionComponent', () => {
       } as any)
 
       store.columnSelectionVm$.pipe(take(1)).subscribe((vm) => {
-        expect(vm.options[1].items).toEqual([
+        const saved = vm.options.find((group) => group.value === 'saved')
+        expect(saved?.items).toEqual([
           {
             label: onlyColumnsConfig.name,
             value: onlyColumnsConfig.name,
             config: onlyColumnsConfig
           }
         ])
+        done()
+      })
+    })
+
+    it('should leave out the Saved group when no saved config stores columns', (done) => {
+      store.patchState({
+        nonSearchConfigGroupKeys: ['default'],
+        searchConfigs: [onlyValuesConfig],
+        customGroupKey: 'custom'
+      } as any)
+
+      store.columnSelectionVm$.pipe(take(1)).subscribe((vm) => {
+        expect(vm.options.map((group) => group.value)).toEqual(['predefined'])
+        done()
+      })
+    })
+
+    it('should leave out the Predefined group when the host provides no column group', (done) => {
+      store.patchState({
+        nonSearchConfigGroupKeys: [],
+        searchConfigs: [onlyColumnsConfig],
+        customGroupKey: 'custom'
+      } as any)
+
+      store.columnSelectionVm$.pipe(take(1)).subscribe((vm) => {
+        expect(vm.options.map((group) => group.value)).toEqual(['saved'])
         done()
       })
     })
@@ -913,7 +941,7 @@ describe('OneCXColumnGroupSelectionComponent', () => {
   describe('Save As', () => {
     const dialogTitle = 'SEARCH_CONFIG.SAVE_AS_DIALOG.HEADER'
     const saveButton = 'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE'
-    const cancelButton = 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL'
+    const cancelButton = { key: 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL', id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID }
 
     const mockMfe = () => {
       const appState = TestBed.inject(AppStateService)
@@ -966,7 +994,7 @@ describe('OneCXColumnGroupSelectionComponent', () => {
         },
         saveButton,
         cancelButton,
-        { width: SEARCH_CONFIG_DIALOG_WIDTH }
+        { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
       )
       expectExistingConfigsSelector(dialogServiceSpy, [config])
     }))
@@ -1038,7 +1066,8 @@ describe('OneCXColumnGroupSelectionComponent', () => {
         name: 'brand-new-config',
         isAdvanced: true,
         columns: ['my-col'],
-        values: { k1: 'v1' }
+        // An empty field is stored as an empty string, so the saved criteria keep the empty search.
+        values: { k1: 'v1', empty: '' }
       })
     }))
 
@@ -1147,17 +1176,17 @@ describe('OneCXColumnGroupSelectionComponent', () => {
       })
       expect(upsertSpy).toHaveBeenCalledWith(config)
       expect(setGroupSpy).toHaveBeenCalledWith(config.name)
-      // The saved config stores columns, so it is also re-pointed as the header's current config.
+      // The saved config stores criteria as well, so it is also the header's current config.
       expect(setConfigSpy).toHaveBeenCalledWith(config)
       expect(portalMessageSpy.info).not.toHaveBeenCalled()
     }))
 
-    it('should upsert and select but not re-point the current config when the saved config stores no columns', fakeAsync(() => {
+    it('should set the config as the header current config without selecting it in the column selector when the saved config stores no columns', fakeAsync(() => {
       mockMfe()
       const upsertSpy = jest.spyOn(store, 'upsertSearchConfig')
       const setGroupSpy = jest.spyOn(store, 'setSelectedGroupKey')
       const setConfigSpy = jest.spyOn(store, 'setCurrentConfig')
-      // A columns-only config (no stored columns) is saved.
+      // A criteria-only config (no stored columns) is saved.
       jest.spyOn(searchConfigServiceSpy, 'createSearchConfig').mockReturnValue(
         of({
           id: onlyValuesConfig.id,
@@ -1183,9 +1212,43 @@ describe('OneCXColumnGroupSelectionComponent', () => {
       tick(500)
 
       expect(upsertSpy).toHaveBeenCalledWith(onlyValuesConfig)
-      expect(setGroupSpy).toHaveBeenCalledWith(onlyValuesConfig.name)
-      // `hasColumns` is false, so the header's current config is left untouched.
-      expect(setConfigSpy).toHaveBeenCalledTimes(0)
+      // The column selector does not list a config without columns, so it is not selected there.
+      expect(setGroupSpy).not.toHaveBeenCalled()
+      expect(setConfigSpy).toHaveBeenCalledWith(onlyValuesConfig)
+    }))
+
+    it('should select a columns-only config in the column selector and keep the header current config when it is saved', fakeAsync(() => {
+      mockMfe()
+      const upsertSpy = jest.spyOn(store, 'upsertSearchConfig')
+      const setGroupSpy = jest.spyOn(store, 'setSelectedGroupKey')
+      const setConfigSpy = jest.spyOn(store, 'setCurrentConfig')
+      jest.spyOn(searchConfigServiceSpy, 'createSearchConfig').mockReturnValue(
+        of({
+          id: onlyColumnsConfig.id,
+          configs: [onlyColumnsConfig]
+        } as any)
+      )
+      store.patchState({
+        searchConfigs: [],
+        pageName: 'my-page',
+        fieldValues: {},
+        displayedColumnsIds: ['col-3'],
+        viewMode: basicViewMode
+      })
+      jest.spyOn(portalDialogSpy, 'openDialog').mockReturnValue(
+        dialogResult({
+          searchConfigName: onlyColumnsConfig.name,
+          saveInputValues: false,
+          saveColumns: true
+        })
+      )
+
+      component.onColumnGroupSaveAs()
+      tick(500)
+
+      expect(upsertSpy).toHaveBeenCalledWith(onlyColumnsConfig)
+      expect(setGroupSpy).toHaveBeenCalledWith(onlyColumnsConfig.name)
+      expect(setConfigSpy).not.toHaveBeenCalled()
     }))
 
     it('should not upsert or select the config when the dialog was closed', fakeAsync(() => {
@@ -1330,7 +1393,9 @@ describe('OneCXColumnGroupSelectionComponent', () => {
       })
       expect(upsertSpy).toHaveBeenCalledWith(savedConfig)
       expect(setGroupSpy).toHaveBeenCalledWith(savedConfig.name)
-      expect(setConfigSpy).toHaveBeenCalledWith(savedConfig)
+      // The overwrite stores columns only, so the header (which lists configs with criteria) is not
+      // pointed at it; the store's upsert keeps the header's current config in sync instead.
+      expect(setConfigSpy).not.toHaveBeenCalled()
     }))
 
     it('should not upsert or select the config when the create call failed', fakeAsync(() => {

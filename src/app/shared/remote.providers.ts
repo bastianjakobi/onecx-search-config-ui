@@ -25,6 +25,7 @@ import {
 import { provideThemeConfig } from '@onecx/angular-utils/theme/primeng'
 import { getNgZone } from '@onecx/angular-webcomponents'
 
+import { ownTranslationPath, provideHostTranslationPath } from 'src/app/shared/host-translation-path'
 import {
   SearchConfigStore,
   SEARCH_CONFIG_STORE_NAME,
@@ -56,6 +57,9 @@ function userProfileInitializer(userService: UserService) {
  * The translation base URL is passed in because the bootstrap entry files are loaded
  * from unit tests where `import.meta` is not available (ts-jest compiles to CommonJS).
  * The bootstrap files call this with `import.meta.url`.
+ *
+ * Besides its own translations the remote loads the translations of the host MFE that embeds it, so
+ * the i18n keys the host passes in (e.g. predefined column group keys) are translated as well.
  */
 export function createRemoteProviders(
   storeName: string,
@@ -87,6 +91,9 @@ export function createRemoteProviders(
       return initializerFn()
     }),
     providePortalDialogService(),
+    // The host MFE's translations come first so the remote's own texts win on a shared key; they
+    // translate the i18n keys the host passes in (predefined column groups, placeholder).
+    provideHostTranslationPath(ownTranslationPath(translationUrl)),
     provideTranslationPathFromMeta(translationUrl, 'assets/i18n/'),
     provideThemeConfig(),
     provideTranslateService({

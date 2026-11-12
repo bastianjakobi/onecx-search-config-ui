@@ -4,7 +4,7 @@ import { PortalDialogService } from '@onecx/angular-accelerator'
 import { AppStateService, PortalMessageService } from '@onecx/angular-integration-interface'
 
 import { SearchConfig, SearchConfigAPIService, SearchConfigInfo } from 'src/app/shared/generated'
-import { advancedViewMode, SEARCH_CONFIG_DIALOG_WIDTH } from './constants'
+import { advancedViewMode, SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID, SEARCH_CONFIG_DIALOG_WIDTH } from './constants'
 import { loadSearchConfigInfos, saveSearchConfig } from './search-config-create'
 import { SearchConfigStore } from './search-config.store'
 
@@ -257,8 +257,8 @@ describe('search-config-create', () => {
           }
         },
         'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE',
-        'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL',
-        { width: SEARCH_CONFIG_DIALOG_WIDTH }
+        { key: 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL', id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID },
+        { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
       )
     })
 

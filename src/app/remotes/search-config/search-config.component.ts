@@ -210,8 +210,14 @@ export class OneCXSearchConfigComponent implements ocxRemoteComponent, ocxRemote
         setTimeout(() => {
           config && this.searchConfigStore.upsertSearchConfig(config)
         })
+        // Select the saved config in every input that lists it: the column selector lists configs that
+        // store columns, the header lists configs that store criteria. A columns-only save (criteria
+        // unchecked) keeps the header's current config instead of pointing it at a config it cannot list.
         setTimeout(() => {
-          config && this.searchConfigStore.setCurrentConfig(config)
+          config && hasColumns(config) && this.searchConfigStore.setSelectedGroupKey(config.name)
+        })
+        setTimeout(() => {
+          config && hasValues(config) && this.searchConfigStore.setCurrentConfig(config)
         })
       }
     })

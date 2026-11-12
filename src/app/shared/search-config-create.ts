@@ -15,7 +15,11 @@ import {
   CreateOrEditSearchConfigDialogComponent,
   CreateOrEditSearchDialogContent
 } from 'src/app/shared/components/create-or-edit-search-config-dialog/create-or-edit-search-config-dialog.component'
-import { advancedViewMode, SEARCH_CONFIG_DIALOG_WIDTH } from 'src/app/shared/constants'
+import {
+  advancedViewMode,
+  SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID,
+  SEARCH_CONFIG_DIALOG_WIDTH
+} from 'src/app/shared/constants'
 import { parseFieldValues } from 'src/app/shared/search-config.utils'
 
 /**
@@ -145,8 +149,11 @@ export function saveSearchConfig(
         }
       },
       'SEARCH_CONFIG.SAVE_AS_DIALOG.SAVE',
-      'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL',
-      { width: SEARCH_CONFIG_DIALOG_WIDTH }
+      {
+        key: 'SEARCH_CONFIG.SAVE_AS_DIALOG.CANCEL',
+        id: SEARCH_CONFIG_DIALOG_CANCEL_BUTTON_ID
+      },
+      { width: SEARCH_CONFIG_DIALOG_WIDTH, showXButton: true }
     )
     .pipe(
       withLatestFrom(
